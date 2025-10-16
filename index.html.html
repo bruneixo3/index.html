@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicativo Fitness</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    <script>
+        // Configuração do Tailwind para modo escuro baseado em classe
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <!-- O React vai renderizar o app aqui -->
+    <div id="root"></div>
+
+    <!-- Bibliotecas React e ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel para transpilar JSX no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- SDKs do Firebase (usando type="module") -->
+    <script type="module">
+        // Importando as funções do Firebase a partir do CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+        // Disponibilizando as funções globalmente para que o script Babel possa acessá-las
+        window.firebaseUtils = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged,
+            getFirestore,
+            doc,
+            getDoc,
+            setDoc,
+            updateDoc,
+            onSnapshot,
+            collection,
+            query,
+            where,
+            getDocs
+        };
+    </script>
+
+    <!-- Seu código da aplicação React -->
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } = window.firebaseUtils;
+
+        // --- COMPONENTES DE ÍCONES (Substitutos para lucide-react) ---
+        const Icon = ({ children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+        );
+        const ChevronLeft = (props) => <Icon {...props}><path d="m15 18-6-6 6-6"/></Icon>;
+        const ChevronRight = (props) => <Icon {...props}><path d="m9 18 6-6-6-6"/></Icon>;
+        const User = (props) => <Icon {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></Icon>;
+        const Home = (props) => <Icon {...props}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Icon>;
+        const List = (props) => <Icon {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></Icon>;
+        const Droplet = (props) => <Icon {...props}><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></Icon>;
+        const Calendar = (props) => <Icon {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></Icon>;
+        const TrendingUp = (props) => <Icon {...props}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></Icon>;
+        const Plus = (props) => <Icon {...props}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const Minus = (props) => <Icon {...props}><path d="M5 12h14"/></Icon>;
+        const X = (props) => <Icon {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+        const Trash2 = (props) => <Icon {...props}><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const Camera = (props) => <Icon {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></Icon>;
+        const Zap = (props) => <Icon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+        const Heart = (props) => <Icon {...props}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></Icon>;
+        const Loader2 = (props) => <Icon {...props} className={`animate-spin ${props.className || ''}`}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Icon>;
+        const Sun = (props) => <Icon {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m4.93 17.66 1.41-1.41"/><path d="m17.66 4.93 1.41-1.41"/></Icon>;
+        const Moon = (props) => <Icon {...props}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></Icon>;
+
+
+        // --- FUNÇÕES DE CÁLCULO E CONSTANTES ---
+        
+        const initialFoodDatabase = [
+            { id: 1, name: "Peito de Frango Grelhado", calories: 165, protein: 31, carbs: 0, fat: 3.6, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'bife (120g)', multiplier: 1.2}] },
+            { id: 2, name: "Filé de Tilápia Assado", calories: 128, protein: 26, carbs: 0, fat: 2.6, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'filé (150g)', multiplier: 1.5}] },
+            { id: 3, name: "Salmão Grelhado", calories: 208, protein: 20, carbs: 0, fat: 13, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'posta (180g)', multiplier: 1.8}] },
+            { id: 4, name: "Patinho Moído (90/10)", calories: 192, protein: 29, carbs: 0, fat: 8, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara', multiplier: 1.2}] },
+            { id: 5, name: "Atum em Água (drenado)", calories: 86, protein: 19, carbs: 0, fat: 0.8, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'lata (80g)', multiplier: 0.8}] },
+            { id: 6, name: "Ovo Cozido", calories: 155, protein: 13, carbs: 1.1, fat: 11, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. grande (50g)', multiplier: 0.5}, {name: 'clara (33g)', multiplier: 0.33}, {name: 'gema (17g)', multiplier: 0.17}] },
+            { id: 7, name: "Lombo de Porco Assado", calories: 242, protein: 27, carbs: 0, fat: 14, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 8, name: "Iogurte Grego Natural 0%", calories: 59, protein: 10, carbs: 3.6, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'pote (100g)', multiplier: 1}] },
+            { id: 9, name: "Queijo Cottage 4%", calories: 98, protein: 11, carbs: 3.4, fat: 4.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (15g)', multiplier: 0.15}, {name: 'xícara (225g)', multiplier: 2.25}] },
+            { id: 10, name: "Leite Desnatado", calories: 35, protein: 3.4, carbs: 5, fat: 0.1, servingSizes: [{name: 'ml', multiplier: 0.01}, {name: 'copo (240ml)', multiplier: 2.4}] },
+            { id: 11, name: "Queijo Minas Frescal", calories: 264, protein: 17, carbs: 1.5, fat: 20, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (30g)', multiplier: 0.3}] },
+            { id: 12, name: "Whey Protein Isolado", calories: 370, protein: 90, carbs: 2, fat: 1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'scoop (30g)', multiplier: 0.3}] },
+            { id: 13, name: "Arroz Branco Cozido", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (20g)', multiplier: 0.2}] },
+            { id: 14, name: "Arroz Integral Cozido", calories: 111, protein: 2.6, carbs: 23, fat: 0.9, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (20g)', multiplier: 0.2}] },
+            { id: 15, name: "Batata Doce Cozida", calories: 86, protein: 1.6, carbs: 20, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (150g)', multiplier: 1.5}] },
+            { id: 16, name: "Batata Inglesa Cozida", calories: 77, protein: 1.7, carbs: 18, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (170g)', multiplier: 1.7}] },
+            { id: 17, name: "Mandioca Cozida", calories: 160, protein: 1.4, carbs: 38, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 18, name: "Aveia em Flocos (seca)", calories: 389, protein: 17, carbs: 66, fat: 7, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (10g)', multiplier: 0.1}, {name: 'xícara (80g)', multiplier: 0.8}] },
+            { id: 19, name: "Pão Integral (fatia)", calories: 265, protein: 13, carbs: 41, fat: 4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (25g)', multiplier: 0.25}] },
+            { id: 20, name: "Macarrão Integral Cozido", calories: 124, protein: 5, carbs: 26, fat: 0.8, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (140g)', multiplier: 1.4}] },
+            { id: 21, name: "Quinoa Cozida", calories: 120, protein: 4.4, carbs: 21, fat: 1.9, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (185g)', multiplier: 1.85}] },
+            { id: 22, name: "Feijão Preto Cozido", calories: 132, protein: 9, carbs: 24, fat: 0.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'concha (100g)', multiplier: 1}] },
+            { id: 23, name: "Lentilha Cozida", calories: 116, protein: 9, carbs: 20, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'concha (100g)', multiplier: 1}] },
+            { id: 24, name: "Grão de Bico Cozido", calories: 139, protein: 7, carbs: 26, fat: 2.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (165g)', multiplier: 1.65}] },
+            { id: 25, name: "Brócolis Cozido", calories: 35, protein: 2.4, carbs: 7.2, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (155g)', multiplier: 1.55}] },
+            { id: 26, name: "Espinafre Cru", calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (30g)', multiplier: 0.3}] },
+            { id: 27, name: "Tomate", calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (120g)', multiplier: 1.2}] },
+            { id: 28, name: "Cenoura Crua", calories: 41, protein: 0.9, carbs: 10, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (60g)', multiplier: 0.6}] },
+            { id: 29, name: "Alface Crespa", calories: 15, protein: 1.4, carbs: 2.9, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'folha (5g)', multiplier: 0.05}] },
+            { id: 30, name: "Abobrinha Cozida", calories: 17, protein: 1.2, carbs: 3.1, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (180g)', multiplier: 1.8}] },
+            { id: 31, name: "Maçã", calories: 52, protein: 0.3, carbs: 14, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (180g)', multiplier: 1.8}] },
+            { id: 32, name: "Banana", calories: 89, protein: 1.1, carbs: 23, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (120g)', multiplier: 1.2}] },
+            { id: 33, name: "Morango", calories: 32, protein: 0.7, carbs: 8, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (150g)', multiplier: 1.5}] },
+            { id: 34, name: "Abacate", calories: 160, protein: 2, carbs: 9, fat: 15, servingSizes: [{name: 'g', multiplier: 0.01}, {name: '1/4 unid (50g)', multiplier: 0.5}] },
+            { id: 35, name: "Mamão Formosa", calories: 43, protein: 0.5, carbs: 11, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (100g)', multiplier: 1}] },
+            { id: 36, name: "Laranja", calories: 47, protein: 0.9, carbs: 12, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (130g)', multiplier: 1.3}] },
+            { id: 37, name: "Uva", calories: 69, protein: 0.7, carbs: 18, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'cacho pequeno (100g)', multiplier: 1}] },
+            { id: 38, name: "Azeite de Oliva Extra Virgem", calories: 884, protein: 0, carbs: 0, fat: 100, servingSizes: [{name: 'ml', multiplier: 0.01}, {name: 'colher de sopa (15ml)', multiplier: 0.15}] },
+            { id: 39, name: "Castanha do Pará", calories: 656, protein: 14, carbs: 12, fat: 66, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (5g)', multiplier: 0.05}] },
+            { id: 40, name: "Amêndoas", calories: 579, protein: 21, carbs: 22, fat: 49, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'porção (30g)', multiplier: 0.3}] },
+            { id: 41, name: "Pasta de Amendoim Integral", calories: 588, protein: 25, carbs: 20, fat: 50, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (15g)', multiplier: 0.15}] },
+            { id: 42, name: "Mel", calories: 304, protein: 0.3, carbs: 82, fat: 0, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (21g)', multiplier: 0.21}] },
+            { id: 43, name: "Pão Francês", calories: 289, protein: 8.9, carbs: 58, fat: 2.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (50g)', multiplier: 0.5}] },
+            { id: 44, name: "Tapioca (goma hidratada)", calories: 240, protein: 0, carbs: 60, fat: 0, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (15g)', multiplier: 0.15}] },
+            { id: 45, name: "Cuscuz (flocão de milho)", calories: 361, protein: 8, carbs: 79, fat: 1.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (150g)', multiplier: 1.5}] },
+            { id: 46, name: "Sardinha em Óleo", calories: 208, protein: 24.6, carbs: 0, fat: 11.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'lata (84g)', multiplier: 0.84}] },
+            { id: 47, name: "Ricota", calories: 174, protein: 11, carbs: 3, fat: 13, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (30g)', multiplier: 0.3}] },
+            { id: 48, name: "Tofu", calories: 76, protein: 8, carbs: 1.9, fat: 4.8, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (85g)', multiplier: 0.85}] },
+            { id: 49, name: "Couve-flor cozida", calories: 23, protein: 1.8, carbs: 4.1, fat: 0.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (125g)', multiplier: 1.25}] },
+            { id: 50, name: "Pepino", calories: 15, protein: 0.7, carbs: 3.6, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (300g)', multiplier: 3}] },
+            { id: 51, name: "Melancia", calories: 30, protein: 0.6, carbs: 8, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (280g)', multiplier: 2.8}] },
+            { id: 52, name: "Manga", calories: 60, protein: 0.8, carbs: 15, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (165g)', multiplier: 1.65}] },
+            { id: 53, name: "Kiwi", calories: 61, protein: 1.1, carbs: 15, fat: 0.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (70g)', multiplier: 0.7}] },
+            { id: 54, name: "Nozes", calories: 654, protein: 15, carbs: 14, fat: 65, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'porção (30g)', multiplier: 0.3}] },
+            { id: 55, name: "Semente de Chia", calories: 486, protein: 17, carbs: 42, fat: 31, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (10g)', multiplier: 0.1}] },
+            { id: 56, name: "Semente de Linhaça", calories: 534, protein: 18, carbs: 29, fat: 42, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (10g)', multiplier: 0.1}] },
+            { id: 57, name: "Café Preto", calories: 2, protein: 0.1, carbs: 0, fat: 0, servingSizes: [{name: 'ml', multiplier: 0.01}, {name: 'xícara (240ml)', multiplier: 2.4}] },
+            { id: 58, name: "Peito de Peru Defumado", calories: 104, protein: 22, carbs: 1, fat: 1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (15g)', multiplier: 0.15}] },
+            { id: 59, name: "Cogumelo Paris", calories: 22, protein: 3.1, carbs: 3.3, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (70g)', multiplier: 0.7}] },
+            { id: 60, name: "Pimentão Amarelo", calories: 27, protein: 1, carbs: 6, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (180g)', multiplier: 1.8}] },
+            { id: 61, name: "Cebola", calories: 40, protein: 1.1, carbs: 9, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (110g)', multiplier: 1.1}] },
+            { id: 62, name: "Aipim (Macaxeira)", calories: 160, protein: 1.4, carbs: 38, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (200g)', multiplier: 2.0}] },
+            { id: 63, name: "Ervilha", calories: 81, protein: 5, carbs: 14, fat: 0.4, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (160g)', multiplier: 1.6}] },
+            { id: 64, name: "Milho Verde", calories: 86, protein: 3.2, carbs: 19, fat: 1.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'espiga (100g)', multiplier: 1}] },
+            { id: 65, name: "Beterraba Cozida", calories: 44, protein: 1.7, carbs: 10, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (170g)', multiplier: 1.7}] },
+            { id: 66, name: "Clara de Ovo Pasteurizada", calories: 52, protein: 11, carbs: 1.1, fat: 0.2, servingSizes: [{name: 'ml', multiplier: 0.01}, {name: '100ml', multiplier: 1.0}] },
+            { id: 67, name: "Goiaba", calories: 68, protein: 2.6, carbs: 14, fat: 1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (90g)', multiplier: 0.9}] },
+            { id: 68, name: "Pera", calories: 57, protein: 0.4, carbs: 15, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (180g)', multiplier: 1.8}] },
+            { id: 69, name: "Pêssego", calories: 39, protein: 0.9, carbs: 10, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (150g)', multiplier: 1.5}] },
+            { id: 70, name: "Ameixa", calories: 46, protein: 0.7, carbs: 11, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unid. média (66g)', multiplier: 0.66}] },
+            { id: 71, name: "Melão", calories: 34, protein: 0.8, carbs: 8, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (150g)', multiplier: 1.5}] },
+            { id: 72, name: "Maracujá", calories: 97, protein: 2.2, carbs: 23, fat: 0.7, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (90g)', multiplier: 0.9}] },
+            { id: 73, name: "Limão", calories: 29, protein: 1.1, carbs: 9, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (60g)', multiplier: 0.6}] },
+            { id: 74, name: "Bacon Frito", calories: 541, protein: 37, carbs: 1.5, fat: 42, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (8g)', multiplier: 0.08}] },
+            { id: 75, name: "Chocolate Amargo 70%", calories: 598, protein: 7.8, carbs: 46, fat: 43, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'quadrado (10g)', multiplier: 0.1}] },
+            { id: 76, name: "Requeijão Light", calories: 196, protein: 14, carbs: 3, fat: 14, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (30g)', multiplier: 0.3}] },
+            { id: 77, name: "Mussarela de Búfala", calories: 282, protein: 18, carbs: 2, fat: 22, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (20g)', multiplier: 0.2}] },
+            { id: 78, name: "Presunto Cozido", calories: 145, protein: 21, carbs: 1.5, fat: 6, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'fatia (15g)', multiplier: 0.15}] },
+            { id: 79, name: "Farinha de Mandioca", calories: 365, protein: 1.2, carbs: 87, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (15g)', multiplier: 0.15}] },
+            { id: 80, name: "Açúcar Branco", calories: 387, protein: 0, carbs: 100, fat: 0, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'colher de sopa (12g)', multiplier: 0.12}] },
+            { id: 81, name: "Óleo de Coco", calories: 862, protein: 0, carbs: 0, fat: 100, servingSizes: [{name: 'ml', multiplier: 0.01}, {name: 'colher de sopa (15ml)', multiplier: 0.15}] },
+            { id: 82, name: "Amendoim Torrado", calories: 567, protein: 26, carbs: 16, fat: 49, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'porção (30g)', multiplier: 0.3}] },
+            { id: 83, name: "Feijão Carioca Cozido", calories: 76, protein: 5, carbs: 14, fat: 0.5, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'concha (100g)', multiplier: 1}] },
+            { id: 84, name: "Coxão Mole Grelhado", calories: 219, protein: 32, carbs: 0, fat: 9, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'bife (120g)', multiplier: 1.2}] },
+            { id: 85, name: "Filé Mignon Grelhado", calories: 271, protein: 26, carbs: 0, fat: 17, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'medalhão (150g)', multiplier: 1.5}] },
+            { id: 86, name: "Linguiça Toscana Assada", calories: 323, protein: 14, carbs: 1.5, fat: 28, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'unidade (60g)', multiplier: 0.6}] },
+            { id: 87, name: "Alcatra Grelhada", calories: 236, protein: 30, carbs: 0, fat: 12, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'bife (120g)', multiplier: 1.2}] },
+            { id: 88, name: "Abóbora Cabotiá Cozida", calories: 40, protein: 1, carbs: 10, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (205g)', multiplier: 2.05}] },
+            { id: 89, name: "Rúcula", calories: 25, protein: 2.6, carbs: 3.7, fat: 0.7, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (20g)', multiplier: 0.2}] },
+            { id: 90, name: "Agrião", calories: 11, protein: 2.6, carbs: 1.3, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'maço (100g)', multiplier: 1.0}] },
+            { id: 91, name: "Vagem Cozida", calories: 35, protein: 1.9, carbs: 8, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (125g)', multiplier: 1.25}] },
+            { id: 92, name: "Palmito Pupunha", calories: 28, protein: 2.5, carbs: 4.6, fat: 0.3, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 93, name: "Chuchu Cozido", calories: 20, protein: 0.6, carbs: 4.3, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 94, name: "Acelga", calories: 19, protein: 1.8, carbs: 3.7, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}, {name: 'xícara (175g)', multiplier: 1.75}] },
+            { id: 95, name: "Jiló", calories: 27, protein: 1.4, carbs: 6, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 96, name: "Quiabo", calories: 33, protein: 1.9, carbs: 7, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 97, name: "Nabo", calories: 28, protein: 0.9, carbs: 6, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 98, name: "Aipo", calories: 16, protein: 0.7, carbs: 3, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 99, name: "Aspargos", calories: 20, protein: 2.2, carbs: 3.9, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 100, name: "Berinjela Cozida", calories: 35, protein: 0.8, carbs: 8.7, fat: 0.2, servingSizes: [{name: 'g', multiplier: 0.01}] },
+            { id: 101, name: "Rabanete", calories: 16, protein: 0.7, carbs: 3.4, fat: 0.1, servingSizes: [{name: 'g', multiplier: 0.01}] },
+        ];
+        
+        const activityFactors = {
+            'Sedentário': { factor: 1.2, days: 'Pouco ou nenhum exercício.' },
+            'Leve': { factor: 1.375, days: 'Exercício leve (1 a 3 dias por semana).' },
+            'Moderado': { factor: 1.55, days: 'Exercício moderado (3 a 5 dias por semana).' },
+            'Ativo': { factor: 1.725, days: 'Exercício pesado (6 a 7 dias por semana).' },
+            'Muito Ativo': { factor: 1.9, days: 'Exercício muito pesado e trabalho físico.' },
+        };
+        const muscleGroups = ["Peito", "Costas", "Pernas", "Ombros", "Braços", "Corpo Inteiro", "Abdominais"];
+        const goalOptions = ['Perder Peso', 'Manter Peso', 'Ganhar Massa', 'Perder Gordura (Preservar M. Magra)'];
+        const dietPreferences = ['Nenhuma', 'Vegetariano', 'Vegano', 'Sem Glúten', 'Cetogênica', 'Low Carb'];
+
+        const getDateKey = (date = new Date()) => {
+            const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            return d.toISOString().split('T')[0];
+        };
+
+        const calculateBMR = (profile) => {
+            const { age, sex, weight, height } = profile;
+            if (!weight || !height || !age) return 0;
+            let bmr;
+            if (sex === 'Masculino') {
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+            } else {
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+            }
+            return Math.round(bmr);
+        };
+
+        const calculateTDEE = (bmr, activityLevel) => {
+            const factor = activityFactors[activityLevel]?.factor || 1.2;
+            return Math.round(bmr * factor);
+        };
+
+        const calculateSuggestedCalorieGoal = (tdee, goal) => {
+            if (tdee === 0) return 0;
+            switch(goal) {
+                case 'Perder Peso': return Math.round(tdee * 0.80);
+                case 'Perder Gordura (Preservar M. Magra)': return Math.round(tdee * 0.85);
+                case 'Ganhar Massa': return Math.round(tdee * 1.15);
+                case 'Manter Peso':
+                default:
+                    return tdee;
+            }
+        };
+
+        const calculateWaterGoal = (profile) => {
+            const { weight, activityLevel } = profile;
+            if (!weight) return 0;
+            let goal = weight * 35;
+            const activityAdjustment = {
+                'Sedentário': 0, 'Leve': 300, 'Moderado': 500,
+                'Ativo': 750, 'Muito Ativo': 1000,
+            };
+            goal += (activityAdjustment[activityLevel] || 0);
+            return Math.max(2000, Math.round(goal));
+        };
+
+        const ProgressBar = ({ label, current, max, unit = 'kcal', color = 'bg-indigo-500', isWater = false }) => {
+            const safeMax = max > 0 ? max : 1;
+            const safeCurrent = Math.max(0, current);
+            const percentage = Math.min(100, (safeCurrent / safeMax) * 100);
+            let finalColor = color;
+            if (isWater && percentage >= 100) finalColor = 'bg-green-500';
+            if (!isWater && percentage > 100) finalColor = 'bg-red-500';
+
+            return (
+                <div className="mb-4">
+                    <div className="flex justify-between items-center text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        <span>{label}</span>
+                        <span>{Math.round(safeCurrent)} / {max > 0 ? max : 0} {unit}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                        <div className={`${finalColor} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const getUserDocPath = (appId, userId, docName) => {
+            return `artifacts/${appId}/users/${userId}/settings/${docName}`;
+        };
+
+        const getUserCollectionPath = (appId, userId, collectionName) => {
+            return `artifacts/${appId}/users/${userId}/${collectionName}`;
+        };
+        
+        const App = () => {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [userId, setUserId] = useState(null);
+            const [isAuthReady, setIsAuthReady] = useState(false);
+            const [isLoadingData, setIsLoadingData] = useState(true);
+
+            const initialProfile = {
+                name: 'Usuário Padrão', photo: 'https://placehold.co/100x100/3730a3/ffffff?text=U', 
+                age: 30, sex: 'Feminino', weight: 70, height: 170, goal: goalOptions[0],
+                activityLevel: 'Moderado', dietPreference: dietPreferences[0], evolutionPhotos: [],
+                customCalorieGoal: null,
+                isDarkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+            };
+            const [userProfile, setUserProfile] = useState(initialProfile);
+            const [dailyLog, setDailyLog] = useState({ date: getDateKey(), waterIntake: 0, foodLog: [] });
+            const [trainingLog, setTrainingLog] = useState({});
+            const [foodDatabase, setFoodDatabase] = useState(initialFoodDatabase);
+
+            const [currentView, setCurrentView] = useState('Home');
+            const [currentViewDate, setCurrentViewDate] = useState(new Date());
+            const [monthlyCalorieLogs, setMonthlyCalorieLogs] = useState({});
+            const [currentDateKey, setCurrentDateKey] = useState(getDateKey());
+
+            const profilePhotoRef = useRef(null);
+            const evolutionPhotoRef = useRef(null);
+            
+            useEffect(() => {
+                const root = window.document.documentElement;
+                if (userProfile.isDarkMode) {
+                    root.classList.add('dark');
+                } else {
+                    root.classList.remove('dark');
+                }
+            }, [userProfile.isDarkMode]);
+
+            useEffect(() => {
+                const handleVisibilityChange = () => {
+                    if (document.visibilityState === 'visible') {
+                        setCurrentDateKey(getDateKey());
+                    }
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                const interval = setInterval(() => setCurrentDateKey(getDateKey()), 60000); // Check every minute
+                return () => {
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                    clearInterval(interval);
+                };
+            }, []);
+
+            useEffect(() => {
+                if (!firebaseConfig) {
+                    console.error("Firebase config not available. Running in mock mode.");
+                    setIsAuthReady(true);
+                    setIsLoadingData(false);
+                    return;
+                }
+
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    const firestore = getFirestore(app);
+                    const authService = getAuth(app);
+                    setDb(firestore);
+                    setAuth(authService);
+
+                    const authenticate = async () => {
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(authService, initialAuthToken);
+                            } else {
+                                await signInAnonymously(authService);
+                            }
+                        } catch (error) {
+                            console.error("Firebase Auth Error:", error);
+                            await signInAnonymously(authService);
+                        }
+                    };
+
+                    const unsubscribe = onAuthStateChanged(authService, (user) => {
+                        if (user) setUserId(user.uid);
+                        else setUserId(null);
+                        setIsAuthReady(true);
+                    });
+                    
+                    authenticate();
+                    return () => unsubscribe();
+                } catch (e) {
+                    console.error("Failed to initialize Firebase:", e);
+                    setIsAuthReady(true);
+                    setIsLoadingData(false);
+                }
+            }, [firebaseConfig, initialAuthToken]);
+
+            useEffect(() => {
+                if (!db || !userId || !isAuthReady) return;
+
+                setIsLoadingData(true);
+                
+                const profileDocRef = doc(db, getUserDocPath(appId, userId, 'user-profile'));
+                const unsubscribeProfile = onSnapshot(profileDocRef, (docSnap) => {
+                    if (docSnap.exists()) setUserProfile(prev => ({ ...initialProfile, ...prev, ...docSnap.data() }));
+                    else setDoc(profileDocRef, initialProfile, { merge: true });
+                });
+                
+                const trainingDocRef = doc(db, getUserDocPath(appId, userId, 'training-data'));
+                const unsubscribeTraining = onSnapshot(trainingDocRef, (docSnap) => {
+                    if (docSnap.exists()) setTrainingLog(docSnap.data());
+                    else setDoc(trainingDocRef, {}, { merge: true });
+                });
+
+                const dailyDocRef = doc(db, getUserCollectionPath(appId, userId, 'daily-logs'), currentDateKey);
+                const unsubscribeDaily = onSnapshot(dailyDocRef, (docSnap) => {
+                    const defaultLog = { date: currentDateKey, waterIntake: 0, foodLog: [] };
+                    if (docSnap.exists()) setDailyLog({ ...defaultLog, ...docSnap.data() });
+                    else setDoc(dailyDocRef, defaultLog).then(() => setDailyLog(defaultLog));
+                    setIsLoadingData(false);
+                });
+
+                return () => {
+                    unsubscribeProfile();
+                    unsubscribeTraining();
+                    unsubscribeDaily();
+                };
+
+            }, [db, userId, isAuthReady, currentDateKey]);
+
+             // Fetch calorie data for the calendar view
+            useEffect(() => {
+                if (!db || !userId || !isAuthReady || currentView !== 'Calendar') return;
+
+                const fetchMonthlyData = async () => {
+                    const year = currentViewDate.getFullYear();
+                    const month = currentViewDate.getMonth();
+                    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+                    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+                    const q = query(
+                        collection(db, getUserCollectionPath(appId, userId, 'daily-logs')),
+                        where('date', '>=', startDate),
+                        where('date', '<=', endDate)
+                    );
+
+                    const querySnapshot = await getDocs(q);
+                    const logs = {};
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const totalCalories = data.foodLog.reduce((acc, entry) => {
+                             const { food, quantity, unit } = entry;
+                             const serving = food.servingSizes.find(s => s.name === unit);
+                             const factor = quantity * (serving ? serving.multiplier : 0);
+                             return acc + (food.calories * factor);
+                        }, 0);
+                        logs[doc.id] = Math.round(totalCalories);
+                    });
+                    setMonthlyCalorieLogs(logs);
+                };
+                
+                fetchMonthlyData();
+            }, [db, userId, isAuthReady, currentViewDate, currentView]);
+
+            const saveProfile = async (updates) => {
+                if (!db || !userId) return;
+                const profileDocRef = doc(db, getUserDocPath(appId, userId, 'user-profile'));
+                try {
+                    await setDoc(profileDocRef, updates, { merge: true });
+                } catch (e) { console.error("Erro ao salvar perfil:", e); }
+            };
+            
+            const saveTrainingLog = async (updates) => {
+                if (!db || !userId) return;
+                const trainingDocRef = doc(db, getUserDocPath(appId, userId, 'training-data'));
+                try {
+                    await setDoc(trainingDocRef, updates);
+                } catch (e) { console.error("Erro ao salvar treino:", e); }
+            };
+
+            const saveDailyLog = async (updates) => {
+                if (!db || !userId) return;
+                const dailyDocRef = doc(db, getUserCollectionPath(appId, userId, 'daily-logs'), currentDateKey);
+                try {
+                    await setDoc(dailyDocRef, updates, { merge: true });
+                } catch (e) { console.error("Erro ao salvar log diário:", e); }
+            };
+
+            const handleAddFoodToDatabase = (newFood) => {
+                const fullFood = {
+                    ...newFood,
+                    id: Date.now(),
+                    servingSizes: newFood.servingSizes && newFood.servingSizes.length > 0 ? newFood.servingSizes : [{name: 'g', multiplier: 0.01}]
+                };
+                setFoodDatabase(prev => [...prev, fullFood]);
+            };
+
+            const handleFileSelect = (event, type) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const newPhotoUrl = reader.result;
+                    if (type === 'profile') saveProfile({ photo: newPhotoUrl });
+                    else if (type === 'evolution') saveProfile({ evolutionPhotos: [...userProfile.evolutionPhotos, newPhotoUrl] });
+                };
+                reader.readAsDataURL(file);
+                event.target.value = null;
+            };
+
+            const BMR = useMemo(() => calculateBMR(userProfile), [userProfile]);
+            const TDEE = useMemo(() => calculateTDEE(BMR, userProfile.activityLevel), [BMR, userProfile.activityLevel]);
+            const waterGoal = useMemo(() => calculateWaterGoal(userProfile), [userProfile]);
+            
+            const calculatedCalorieGoal = useMemo(() => calculateSuggestedCalorieGoal(TDEE, userProfile.goal), [TDEE, userProfile.goal]);
+            const finalCalorieGoal = useMemo(() => userProfile.customCalorieGoal > 100 ? userProfile.customCalorieGoal : calculatedCalorieGoal, [userProfile.customCalorieGoal, calculatedCalorieGoal]);
+
+            const dailySummary = useMemo(() => {
+                return dailyLog.foodLog.reduce((acc, entry) => {
+                    const { food, quantity, unit } = entry;
+                    const serving = food.servingSizes.find(s => s.name === unit);
+                    const factor = quantity * (serving ? serving.multiplier : 0);
+                    
+                    if(factor > 0) {
+                        acc.calories += food.calories * factor;
+                        acc.protein += food.protein * factor;
+                        acc.carbs += food.carbs * factor;
+                        acc.fat += food.fat * factor;
+                    }
+                    return acc;
+                }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+            }, [dailyLog.foodLog]);
+
+            const macroGoals = useMemo(() => {
+                let percentages = { p: 0.30, c: 0.40, f: 0.30 }; // Padrão
+                if (userProfile.goal === 'Ganhar Massa') percentages = { p: 0.30, c: 0.50, f: 0.20 };
+                else if (userProfile.goal === 'Perder Gordura (Preservar M. Magra)') percentages = { p: 0.40, c: 0.30, f: 0.30 };
+                
+                const pGoal = Math.round((finalCalorieGoal * percentages.p) / 4);
+                const cGoal = Math.round((finalCalorieGoal * percentages.c) / 4);
+                const fGoal = Math.round((finalCalorieGoal * percentages.f) / 9);
+                return { protein: pGoal, carbs: cGoal, fat: fGoal, distribution: percentages };
+            }, [finalCalorieGoal, userProfile.goal]);
+
+            const handleProfileChange = (key, value) => {
+                saveProfile({ [key]: value });
+            };
+
+            if (isLoadingData) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+                        <div className="flex flex-col items-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                            <Loader2 size={48} className="text-indigo-600 mb-4" />
+                            <p className="text-xl font-semibold text-gray-700 dark:text-gray-200">Carregando dados...</p>
+                        </div>
+                    </div>
+                );
+            }
+            
+            const HomeView = () => (
+                <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-6">Dashboard</h2>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-indigo-50 dark:bg-gray-700/50 p-4 sm:p-6 rounded-xl shadow-inner border border-indigo-200 dark:border-gray-700">
+                            <h3 className="text-xl font-bold text-indigo-700 dark:text-indigo-400 mb-4 flex items-center"><TrendingUp size={20} className="mr-2" /> Minhas Metas</h3>
+                            <p className="text-4xl font-black text-indigo-900 dark:text-white">{finalCalorieGoal} kcal</p>
+                            {userProfile.customCalorieGoal && (
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400 mb-4">Meta manual ativada.</p>
+                            )}
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Meta Diária para **{userProfile.goal}** (TDEE: {TDEE} kcal)</p>
+                            <div className="space-y-3">
+                                <ProgressBar label="Calorias" current={dailySummary.calories} max={finalCalorieGoal} unit="kcal" color="bg-indigo-600"/>
+                                <ProgressBar label="Água" current={dailyLog.waterIntake} max={waterGoal} unit="ml" color="bg-blue-500" isWater={true}/>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+                             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2 flex items-center"><List size={20} className="mr-2" /> Macronutrientes</h3>
+                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Distribuição: 
+                                <span className="font-semibold text-red-600 dark:text-red-400"> P {macroGoals.distribution.p * 100}%</span>, 
+                                <span className="font-semibold text-yellow-600 dark:text-yellow-400"> C {macroGoals.distribution.c * 100}%</span>, 
+                                <span className="font-semibold text-green-600 dark:text-green-400"> G {macroGoals.distribution.f * 100}%</span>
+                             </p>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-center border border-red-200 dark:border-red-800">
+                                    <span className="text-xs font-semibold block text-gray-600 dark:text-gray-300">Proteínas</span>
+                                    <span className="text-xl font-bold text-red-600 dark:text-red-400">{dailySummary.protein.toFixed(1)}g</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400"> / {macroGoals.protein}g</span>
+                                </div>
+                                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg text-center border border-yellow-200 dark:border-yellow-800">
+                                    <span className="text-xs font-semibold block text-gray-600 dark:text-gray-300">Carboidratos</span>
+                                    <span className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{dailySummary.carbs.toFixed(1)}g</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400"> / {macroGoals.carbs}g</span>
+                                </div>
+                                <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg text-center border border-green-200 dark:border-green-800">
+                                    <span className="text-xs font-semibold block text-gray-600 dark:text-gray-300">Gorduras</span>
+                                    <span className="text-xl font-bold text-green-600 dark:text-green-400">{dailySummary.fat.toFixed(1)}g</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400"> / {macroGoals.fat}g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const NumberInputWithControls = ({ label, value, onChange, unit, step = 1, min = 0 }) => (
+                <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-center">{label}</label>
+                    <div className="flex items-center justify-between">
+                        <button onClick={() => onChange(Math.max(min, value - step))} className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/80 transition text-2xl font-bold flex items-center justify-center">-</button>
+                        <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 mx-2">{value} <span className="text-base font-medium text-gray-600 dark:text-gray-400">{unit}</span></span>
+                        <button onClick={() => onChange(value + step)} className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/80 transition text-2xl font-bold flex items-center justify-center">+</button>
+                    </div>
+                </div>
+            );
+
+            const ProfileView = () => {
+                const isCustomGoalActive = userProfile.customCalorieGoal && userProfile.customCalorieGoal > 100;
+                let goalDescription = '';
+                let descriptionColor = 'border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-600';
+
+                switch(userProfile.goal) {
+                    case 'Perder Gordura (Preservar M. Magra)':
+                        goalDescription = <> <span className="font-bold text-red-700 dark:text-red-400">Déficit de 15%:</span> Calculado sobre o TDEE ({TDEE} kcal) para queima de gordura e preservação muscular. </>;
+                        descriptionColor = 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800';
+                        break;
+                    case 'Perder Peso':
+                        goalDescription = <> <span className="font-bold text-red-700 dark:text-red-400">Déficit de 20%:</span> Redução de 20% do seu TDEE ({TDEE} kcal) para uma perda de peso eficaz. </>;
+                        descriptionColor = 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800';
+                        break;
+                    case 'Ganhar Massa':
+                        goalDescription = <> <span className="font-bold text-green-700 dark:text-green-400">Superávit de 15%:</span> Adição de 15% ao seu TDEE ({TDEE} kcal) para suportar o crescimento muscular. </>;
+                        descriptionColor = 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800';
+                        break;
+                    case 'Manter Peso':
+                        goalDescription = <> <span className="font-bold text-gray-700 dark:text-gray-300">Manutenção:</span> Sua meta calórica é igual ao seu Gasto Calórico Diário Total (TDEE: {TDEE} kcal). </>;
+                        descriptionColor = 'border-gray-300 bg-gray-100 dark:bg-gray-700 dark:border-gray-600';
+                        break;
+                }
+
+                return (
+                    <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                        <div className="flex justify-between items-start">
+                             <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-6 flex items-center"><User size={24} className="mr-2" /> Meu Perfil</h2>
+                             <button onClick={() => handleProfileChange('isDarkMode', !userProfile.isDarkMode)} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" title={userProfile.isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}>
+                                {userProfile.isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                            </button>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center justify-between border-b dark:border-gray-700 pb-6 mb-6">
+                            <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+                                <div className="relative">
+                                    <img src={userProfile.photo} alt="Perfil" className="w-24 h-24 rounded-full object-cover border-4 border-indigo-400 shadow-md" />
+                                    <input type="file" accept="image/*" ref={profilePhotoRef} onChange={(e) => handleFileSelect(e, 'profile')} className="hidden"/>
+                                    <button onClick={() => profilePhotoRef.current.click()} className="absolute bottom-0 right-0 p-1 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition shadow-lg" title="Adicionar Foto de Perfil"><Camera size={16} /></button>
+                                </div>
+                                 <input type="text" value={userProfile.name} onChange={(e) => handleProfileChange('name', e.target.value)} className="text-2xl font-bold text-gray-800 dark:text-gray-200 bg-transparent border-b-2 border-transparent focus:border-indigo-500 focus:outline-none"/>
+                            </div>
+                            <div className="text-right p-4 bg-indigo-100 dark:bg-gray-700/50 rounded-lg border border-indigo-300 dark:border-gray-600">
+                                <p className="text-sm text-gray-700 dark:text-gray-300">TMB: <span className="font-bold text-indigo-800 dark:text-indigo-300 text-lg">{BMR} kcal</span></p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">TDEE: <span className="font-bold text-indigo-800 dark:text-indigo-300 text-lg">{TDEE} kcal</span></p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">Meta: <span className={`font-bold text-lg ${isCustomGoalActive ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>{finalCalorieGoal} kcal {isCustomGoalActive && '(Customizada)'}</span></p>
+                            </div>
+                        </div>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                            <NumberInputWithControls label="Idade" unit="anos" value={userProfile.age} onChange={(v) => handleProfileChange('age', v)} />
+                            <NumberInputWithControls label="Peso" unit="kg" value={userProfile.weight} onChange={(v) => handleProfileChange('weight', v)} step={0.5}/>
+                            <NumberInputWithControls label="Altura" unit="cm" value={userProfile.height} onChange={(v) => handleProfileChange('height', v)} />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sexo</label>
+                                <select value={userProfile.sex} onChange={(e) => handleProfileChange('sex', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                                    <option>Feminino</option><option>Masculino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nível de Atividade</label>
+                                <select value={userProfile.activityLevel} onChange={(e) => handleProfileChange('activityLevel', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                                    {Object.keys(activityFactors).map(level => <option key={level} value={level}>{level}</option>)}
+                                </select>
+                                <p className="mt-2 text-xs text-gray-700 dark:text-gray-400 p-2 bg-indigo-50 dark:bg-gray-700/50 rounded-md border border-indigo-200 dark:border-gray-600">
+                                    <span className='font-semibold'>Frequência:</span> {activityFactors[userProfile.activityLevel]?.days}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Objetivo</label>
+                                <select value={userProfile.goal} onChange={(e) => handleProfileChange('goal', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-200 font-semibold">
+                                    {goalOptions.map(goal => <option key={goal} value={goal}>{goal}</option>)}
+                                </select>
+                                <p className={`mt-2 text-xs text-gray-700 dark:text-gray-300 p-2 rounded-md border ${descriptionColor}`}>{goalDescription}</p>
+                            </div>
+                            <div className="lg:col-span-3 border p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-800">
+                                <label className="block text-sm font-bold text-gray-800 dark:text-yellow-300 mb-1 flex items-center"><Zap size={16} className="text-yellow-600 dark:text-yellow-400 mr-2"/> Meta Calórica Customizada</label>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Sugestão: **{calculatedCalorieGoal} kcal**.</p>
+                                <input type="number" placeholder={calculatedCalorieGoal} value={userProfile.customCalorieGoal || ''} onChange={(e) => handleProfileChange('customCalorieGoal', parseInt(e.target.value) || null)} className={`w-full p-2 border rounded-lg focus:ring-yellow-500 focus:border-yellow-500 ${isCustomGoalActive ? 'bg-yellow-200 border-red-500 dark:bg-yellow-900/50 dark:border-red-600' : 'bg-white dark:bg-gray-700 dark:border-gray-600'}`}/>
+                                <button onClick={() => handleProfileChange('customCalorieGoal', null)} disabled={!isCustomGoalActive} className={`mt-2 p-1 text-xs rounded transition ${isCustomGoalActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 cursor-not-allowed'}`}>
+                                    Redefinir para Sugestão ({calculatedCalorieGoal} kcal)
+                                </button>
+                            </div>
+                        </div>
+                        <div className="mt-8 border-t dark:border-gray-700 pt-6">
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">Evolução (Fotos)</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                {userProfile.evolutionPhotos.map((photoUrl, index) => <img key={index} src={photoUrl} alt={`Evolução ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md border border-gray-200 dark:border-gray-700" />)}
+                                <input type="file" accept="image/*" ref={evolutionPhotoRef} onChange={(e) => handleFileSelect(e, 'evolution')} className="hidden" multiple/>
+                                <button onClick={() => evolutionPhotoRef.current.click()} className="w-full h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400 transition">
+                                    <Plus size={24} /><span className="text-sm mt-1">Adicionar Foto</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+            
+            const LogView = ({ foodDatabase, onAddFoodToDatabase }) => {
+                const [searchQuery, setSearchQuery] = useState('');
+                const [selectedFood, setSelectedFood] = useState(null);
+                const [quantity, setQuantity] = useState(1);
+                const [selectedUnit, setSelectedUnit] = useState('');
+                const [mealType, setMealType] = useState('Café da Manhã');
+                const [showAddForm, setShowAddForm] = useState(false);
+                const [newFood, setNewFood] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, servingSizes: [{name: 'g', multiplier: 0.01}]});
+                const meals = ['Café da Manhã', 'Almoço', 'Jantar', 'Lanches'];
+
+                const filteredFoods = foodDatabase.filter(food => food.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+                const handleSelectFood = (food) => {
+                    setSelectedFood(food);
+                    setSelectedUnit(food.servingSizes[0].name);
+                    setQuantity(1);
+                    setSearchQuery('');
+                };
+
+                const handleAddFood = () => {
+                    if (selectedFood && quantity > 0) {
+                        const newEntry = { id: crypto.randomUUID(), meal: mealType, food: selectedFood, quantity, unit: selectedUnit };
+                        saveDailyLog({ foodLog: [newEntry, ...dailyLog.foodLog] });
+                        setSelectedFood(null);
+                    }
+                };
+                
+                const handleSaveNewFood = (e) => {
+                    e.preventDefault();
+                    if(newFood.name && newFood.calories > 0) {
+                        onAddFoodToDatabase(newFood);
+                        setNewFood({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, servingSizes: [{name: 'g', multiplier: 0.01}] });
+                        setShowAddForm(false);
+                    }
+                };
+
+                const handleRemoveFood = (id) => {
+                    const newFoodLog = dailyLog.foodLog.filter(entry => entry.id !== id);
+                    saveDailyLog({ foodLog: newFoodLog });
+                };
+
+                const calculateEntryMacros = (entry) => {
+                    const { food, quantity, unit } = entry;
+                    const serving = food.servingSizes.find(s => s.name === unit);
+                    const factor = quantity * (serving ? serving.multiplier : 0);
+                    return {
+                        calories: (food.calories * factor).toFixed(0),
+                        protein: (food.protein * factor).toFixed(1),
+                        carbs: (food.carbs * factor).toFixed(1),
+                        fat: (food.fat * factor).toFixed(1),
+                    };
+                };
+                
+                return (
+                    <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-6 flex items-center"><List size={24} className="mr-2" /> Registro Alimentar</h2>
+                        <div className="border dark:border-gray-700 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 mb-6">
+                            <h3 className="text-xl font-bold mb-4 dark:text-gray-200">Adicionar Refeição</h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <select value={mealType} onChange={(e) => setMealType(e.target.value)} className="p-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200">
+                                    {meals.map(meal => <option key={meal}>{meal}</option>)}
+                                </select>
+                                <button onClick={() => setShowAddForm(!showAddForm)} className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-semibold flex items-center justify-center text-sm">
+                                    <Plus size={16} className="mr-1" /> Criar Alimento
+                                </button>
+                            </div>
+                            {showAddForm && (
+                                <form onSubmit={handleSaveNewFood} className="p-4 border-t dark:border-gray-700 mt-4 space-y-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg shadow-inner">
+                                    <h4 className="font-bold text-lg text-blue-800 dark:text-blue-300 border-b dark:border-gray-600 pb-2">Novo Alimento (base 100g)</h4>
+                                    <input type="text" placeholder="Nome" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full p-2 border dark:border-gray-600 rounded font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700" required />
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        <input type="number" placeholder="Calorias" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: parseFloat(e.target.value)})} className="w-full p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700" />
+                                        <input type="number" placeholder="Proteínas" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: parseFloat(e.target.value)})} className="w-full p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700" />
+                                        <input type="number" placeholder="Carbs" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: parseFloat(e.target.value)})} className="w-full p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700" />
+                                        <input type="number" placeholder="Gorduras" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: parseFloat(e.target.value)})} className="w-full p-2 border dark:border-gray-600 rounded bg-white dark:bg-gray-700" />
+                                    </div>
+                                    <button type="submit" className="w-full p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-md">Salvar</button>
+                                </form>
+                            )}
+                            <input type="text" placeholder="Busque um alimento..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg mt-4 mb-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-200"/>
+                            {searchQuery.length > 0 && (
+                                <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-700 shadow-md mb-4">
+                                    {filteredFoods.length > 0 ? filteredFoods.map(food => (
+                                        <button key={food.id} onClick={() => handleSelectFood(food)} className="w-full text-left p-3 hover:bg-indigo-50 dark:hover:bg-gray-600 transition border-b dark:border-gray-600 text-sm font-medium flex justify-between items-center text-gray-800 dark:text-gray-200">
+                                            {food.name} <span className="text-xs text-gray-500 dark:text-gray-400">{food.calories} kcal / 100g</span>
+                                        </button>
+                                    )) : <p className="p-3 text-sm text-gray-500 dark:text-gray-400">Nenhum alimento encontrado.</p>}
+                                </div>
+                            )}
+                            {selectedFood && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                                    <input type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} className="w-full p-2 border dark:border-gray-600 rounded-lg text-center bg-white dark:bg-gray-700 dark:text-gray-200"/>
+                                    <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200">
+                                        {selectedFood.servingSizes.map(size => <option key={size.name}>{size.name}</option>)}
+                                    </select>
+                                    <button onClick={handleAddFood} className="w-full p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md">Adicionar</button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-6">
+                            {meals.map(meal => {
+                                const entries = dailyLog.foodLog.filter(e => e.meal === meal);
+                                if (entries.length === 0) return null;
+                                const mealSummary = entries.reduce((acc, entry) => acc + parseFloat(calculateEntryMacros(entry).calories), 0);
+
+                                return (
+                                    <div key={meal} className="border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
+                                        <div className="p-4 bg-indigo-50 dark:bg-gray-700/50 flex justify-between items-center border-b border-indigo-200 dark:border-gray-700">
+                                            <h4 className="text-xl font-bold text-indigo-800 dark:text-indigo-300">{meal}</h4>
+                                            <span className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400">{mealSummary.toFixed(0)} kcal</span>
+                                        </div>
+                                        <div className="p-4 space-y-3">
+                                            {entries.map(entry => {
+                                                const macros = calculateEntryMacros(entry);
+                                                return (
+                                                    <div key={entry.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                                                        <div>
+                                                            <p className="font-semibold text-gray-800 dark:text-gray-200">{entry.food.name}</p>
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400">{entry.quantity} {entry.unit}</p>
+                                                        </div>
+                                                        <div className="flex items-center space-x-3 text-sm font-medium">
+                                                            <span className="font-bold text-indigo-600 dark:text-indigo-400 w-20 text-right">{macros.calories} kcal</span>
+                                                            <button onClick={() => handleRemoveFood(entry.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            const WaterView = () => {
+                const handleWaterChange = (delta) => {
+                    const newIntake = Math.max(0, dailyLog.waterIntake + delta);
+                    saveDailyLog({ waterIntake: newIntake });
+                };
+
+                const waterPercentage = Math.min(100, (dailyLog.waterIntake / waterGoal) * 100);
+                const waterColor = waterPercentage >= 100 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400';
+
+                return (
+                    <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col items-center h-full">
+                        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-8 flex items-center"><Droplet size={24} className="mr-2" /> Registro de Hidratação</h2>
+                        <div className="w-48 h-48 sm:w-64 sm:h-64 relative mb-10">
+                            <div className="w-full h-full border-8 border-blue-200 dark:border-blue-800 rounded-full flex items-center justify-center overflow-hidden">
+                                <div className="absolute bottom-0 left-0 right-0 bg-blue-500 transition-all duration-500" style={{ height: `${waterPercentage}%` }}></div>
+                                <div className="relative text-center z-10 p-4">
+                                    <p className={`text-4xl sm:text-5xl font-black transition-colors ${waterColor}`}>{dailyLog.waterIntake} ml</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">de {waterGoal} ml</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex space-x-4">
+                            <button onClick={() => handleWaterChange(200)} className="flex items-center justify-center p-3 sm:p-4 bg-blue-600 text-white rounded-full text-lg font-bold shadow-lg hover:bg-blue-700 transition"><Plus size={24} className="mr-1"/> 200 ml</button>
+                            <button onClick={() => handleWaterChange(-200)} className="flex items-center justify-center p-3 sm:p-4 bg-red-500 text-white rounded-full text-lg font-bold shadow-lg hover:bg-red-600 transition"><Minus size={24} className="mr-1"/> 200 ml</button>
+                        </div>
+                        <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 mt-6 mb-6">Meta: <span className="font-extrabold text-blue-700 dark:text-blue-400">{waterGoal} ml</span></p>
+                    </div>
+                );
+            };
+            
+            const TrainingCalendar = ({ currentViewDate, setCurrentViewDate, trainingLog, monthlyCalorieLogs }) => {
+                const year = currentViewDate.getFullYear();
+                const month = currentViewDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                
+                const monthName = currentViewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                const goToPrevMonth = () => setCurrentViewDate(new Date(year, month - 1, 1));
+                const goToNextMonth = () => setCurrentViewDate(new Date(year, month + 1, 1));
+                const formatDate = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+                const handleDayClick = (day) => {
+                    const dateKey = formatDate(day);
+                    const existingLog = trainingLog[dateKey];
+                    const newType = existingLog?.type === 'Musculação' ? 'Cardio' : (existingLog?.type === 'Cardio' ? 'Nenhum' : 'Musculação');
+                    let newLog = { ...trainingLog };
+                    if (newType === 'Nenhum') delete newLog[dateKey];
+                    else newLog[dateKey] = { type: newType, muscle: newType === 'Musculação' ? (existingLog?.muscle || muscleGroups[0]) : '', cardio: existingLog?.cardio || false };
+                    saveTrainingLog(newLog);
+                };
+                
+                const updateLog = (dateKey, field, value) => {
+                    saveTrainingLog({ ...trainingLog, [dateKey]: { ...trainingLog[dateKey], [field]: value } });
+                };
+            
+                const getDayStyle = (type) => {
+                    if (!type) return "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200";
+                    if (type === 'Musculação') return "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md";
+                    if (type === 'Cardio') return "bg-green-600 hover:bg-green-700 text-white shadow-md";
+                    return "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200";
+                };
+            
+                const renderDays = () => {
+                    let days = [];
+                    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                    days.push(...dayNames.map(d => <div key={d} className="text-center font-semibold text-sm text-gray-500 dark:text-gray-400 py-2">{d}</div>));
+                    for (let i = 0; i < firstDayOfMonth; i++) days.push(<div key={`empty-${i}`} className="border-r border-b dark:border-gray-700"></div>);
+                    
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dateKey = formatDate(day);
+                        const logEntry = trainingLog[dateKey];
+                        const calorieTotal = monthlyCalorieLogs[dateKey];
+                        const isToday = dateKey === getDateKey();
+                        days.push(
+                            <div key={day} className={`p-1 border-r border-b relative group h-28 sm:h-32 flex flex-col ${isToday ? 'border-2 border-indigo-400/80' : 'border-gray-200 dark:border-gray-700'}`}>
+                                <button onClick={() => handleDayClick(day)} className={`text-sm sm:text-base font-bold w-full p-1 rounded-md transition duration-150 ${getDayStyle(logEntry?.type)}`}>{day}</button>
+                                {logEntry?.type && (
+                                    <div className="mt-1 text-[10px] sm:text-xs text-center flex-grow overflow-hidden">
+                                        <span className="font-semibold block dark:text-gray-200">{logEntry.type}</span>
+                                        {logEntry.type === 'Musculação' && <span className="text-gray-600 dark:text-gray-400 italic block truncate">{logEntry.muscle}</span>}
+                                        {logEntry.cardio && <span className="inline-flex items-center text-red-500 dark:text-red-400 font-semibold"><Heart size={10} className="mr-0.5" /> Cardio</span>}
+                                    </div>
+                                )}
+                                {calorieTotal > 0 && (
+                                    <div className="text-center text-indigo-700 dark:text-indigo-400 text-[11px] font-bold mt-auto bg-indigo-50 dark:bg-gray-700/50 rounded p-0.5">
+                                        {calorieTotal} kcal
+                                    </div>
+                                )}
+                                {logEntry?.type && (
+                                    <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center rounded-lg shadow-xl border border-indigo-200 dark:border-gray-600 z-10">
+                                        <h3 className='text-sm font-bold mb-1 dark:text-gray-100'>Dia {day}</h3>
+                                        <div className="mb-2 w-full">
+                                            <label className="flex items-center text-xs font-medium cursor-pointer dark:text-gray-200">
+                                                <input type="checkbox" checked={logEntry.cardio || false} onChange={(e) => updateLog(dateKey, 'cardio', e.target.checked)} className="rounded text-red-600 focus:ring-red-500 mr-1" />
+                                                <span className='font-semibold'>Fiz Cardio</span>
+                                            </label>
+                                        </div>
+                                        {logEntry.type === 'Musculação' && (
+                                            <>
+                                                <label className='text-xs font-medium mb-1 dark:text-gray-300'>Grupo Muscular:</label>
+                                                <select value={logEntry.muscle} onChange={(e) => updateLog(dateKey, 'muscle', e.target.value)} className="text-xs p-1 border dark:border-gray-600 rounded w-full bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
+                                                    {muscleGroups.map(m => <option key={m}>{m}</option>)}
+                                                </select>
+                                            </>
+                                        )}
+                                        <button onClick={() => { const newLog = { ...trainingLog }; delete newLog[dateKey]; saveTrainingLog(newLog); }} className="mt-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 text-xs flex items-center"><Trash2 size={12} className="mr-0.5" /> Remover Log</button>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
+                    return days;
+                };
+            
+                return (
+                    <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <button onClick={goToPrevMonth} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition dark:text-gray-200"><ChevronLeft size={24} /></button>
+                            <h2 className="text-2xl font-extrabold text-gray-800 dark:text-gray-200 capitalize">{monthName}</h2>
+                            <button onClick={goToNextMonth} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition dark:text-gray-200"><ChevronRight size={24} /></button>
+                        </div>
+                        <div className="grid grid-cols-7 border-t border-l border-gray-200 dark:border-gray-700 flex-grow">{renderDays()}</div>
+                        <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-700 dark:text-gray-300">
+                            <p className="font-bold mb-2">Legenda:</p>
+                            <div className="flex gap-4 flex-wrap">
+                                <span className="flex items-center"><div className="w-4 h-4 rounded-full bg-indigo-600 mr-2"></div>Musculação</span>
+                                <span className="flex items-center"><div className="w-4 h-4 rounded-full bg-green-600 mr-2"></div>Cardio</span>
+                                <span className="flex items-center"><Heart size={16} className="text-red-500 dark:text-red-400 mr-1" />Marcado Cardio</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderView = () => {
+                switch (currentView) {
+                    case 'Home': return <HomeView />;
+                    case 'Log': return <LogView foodDatabase={foodDatabase} onAddFoodToDatabase={handleAddFoodToDatabase} />;
+                    case 'Water': return <WaterView />;
+                    case 'Calendar': return <TrainingCalendar currentViewDate={currentViewDate} setCurrentViewDate={setCurrentViewDate} trainingLog={trainingLog} monthlyCalorieLogs={monthlyCalorieLogs} />;
+                    case 'Profile': return <ProfileView />;
+                    default: return <HomeView />;
+                }
+            };
+
+            const navItems = [
+                { key: 'Home', icon: Home, label: 'Início' },
+                { key: 'Log', icon: List, label: 'Alimentos' },
+                { key: 'Water', icon: Droplet, label: 'Água' },
+                { key: 'Calendar', icon: Calendar, label: 'Treino' },
+                { key: 'Profile', icon: User, label: 'Perfil' },
+            ];
+
+            return (
+                <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col p-2 sm:p-4">
+                    <div className="max-w-4xl w-full mx-auto flex-grow pb-20">{renderView()}</div>
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl z-20">
+                        <div className="flex justify-around max-w-4xl mx-auto">
+                            {navItems.map(item => (
+                                <button
+                                    key={item.key}
+                                    onClick={() => setCurrentView(item.key)}
+                                    className={`flex flex-col items-center p-3 sm:p-4 text-xs font-semibold transition-colors w-1/5 ${
+                                        currentView === item.key ? 'text-indigo-600 dark:text-indigo-400 border-t-2 border-indigo-600 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400'
+                                    }`}
+                                >
+                                    <item.icon size={20} className="mb-0.5" />{item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+                </div>
+            );
+        };
+        
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
+
